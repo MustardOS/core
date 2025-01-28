@@ -302,7 +302,13 @@ for NAME in $CORES; do
 
 	PV_PID=$!
 
-	if make -j"$(nproc)" -f "$MAKE_FILE" "$MAKE_ARGS" "$MAKE_TARGET" >/dev/null 2>&1; then
+	MAKE_CMD="make -j$(nproc)"
+	[ -n "$MAKE_FILE" ] && MAKE_CMD="$MAKE_CMD -f $MAKE_FILE"
+	[ -n "$MAKE_ARGS" ] && MAKE_CMD="$MAKE_CMD $MAKE_ARGS"
+	[ -n "$MAKE_TARGET" ] && MAKE_CMD="$MAKE_CMD $MAKE_TARGET"
+
+	# Run the command
+	if $MAKE_CMD >/dev/null 2>&1; then
 		kill $PV_PID
 		wait $PV_PID 2>/dev/null
 		printf "\nBuild completed successfully for '%s'\n" "$NAME"
