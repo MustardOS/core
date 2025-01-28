@@ -1529,7 +1529,7 @@
     "symbols": 0
   },
   "vbam": {
-    "source": "https://github.com/libretro/vbam-libretro",
+    "source": "https://github.com/visualboyadvance-m/visualboyadvance-m",
     "directory": "vbam-libretro",
     "output": "vbam_libretro.so",
     "make": {
