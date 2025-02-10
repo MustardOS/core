@@ -42,7 +42,7 @@
 2025-01-09 2f3a8fc0 genesis_plus_gx_libretro.so.zip
 2025-01-09 959857e3 geolith_libretro.so.zip
 2025-01-09 c3945077 gme_libretro.so.zip
-2025-01-28 ba403f95 gpsp_libretro.so.zip
+2025-02-10 ba403f95 gpsp_libretro.so.zip
 2025-01-09 c9a8a572 gw_libretro.so.zip
 2025-01-09 3eb81dbf handy_libretro.so.zip
 2025-01-09 5e1b1e19 jaxe_libretro.so.zip
@@ -68,6 +68,7 @@
 2025-01-09 dc3600e8 mednafen_wswan_libretro.so.zip
 2025-01-09 7f3801ef mesen_libretro.so.zip
 2025-01-09 81afe8a5 mesen-s_libretro.so.zip
+2025-02-10 4b269f33 mgba_libretro.so.zip
 2025-01-09 8522e655 minivmac_libretro.so.zip
 2025-01-09 2725062b mu_libretro.so.zip
 2025-01-09 dde6a2fa nekop2_libretro.so.zip
@@ -78,7 +79,7 @@
 2025-01-09 bb76441d o2em_libretro.so.zip
 2025-01-09 a4a0bf20 opera_libretro.so.zip
 2025-01-09 e2281c7a pcsx_rearmed_libretro.so.zip
-2025-01-09 dba35b91 picodrive_libretro.so.zip
+2025-02-10 bd8c34e3 picodrive_libretro.so.zip
 2025-01-09 d5c563e6 pocketcdg_libretro.so.zip
 2025-01-09 40043116 pokemini_libretro.so.zip
 2025-01-09 de712899 potator_libretro.so.zip

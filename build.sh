@@ -2,6 +2,7 @@
 
 printf "\nMURCB - muOS RetroArch Core Builder\n"
 
+# Show 'build.sh' USAGE options
 USAGE() {
 	echo "Usage: $0 [options]"
 	echo ""
@@ -26,6 +27,7 @@ USAGE() {
 	exit 1
 }
 
+# Initialise all options to 0
 PURGE=0
 BUILD_ALL=0
 BUILD_CORES=""
@@ -33,6 +35,7 @@ OPTION_SPECIFIED=0
 UPDATE=0
 STORAGE_POINTER=x
 
+# If argument '-p' or '--purge' provided, set PURGE=1
 if [ "$#" -gt 0 ]; then
 	case "$1" in
 		-p | --purge)
@@ -42,10 +45,12 @@ if [ "$#" -gt 0 ]; then
 	esac
 fi
 
+# If no argument(s) provided show USAGE
 if [ "$#" -eq 0 ]; then
 	USAGE
 fi
 
+# Cechk for remaining arguments and set appropriate options
 while [ "$#" -gt 0 ]; do
 	case "$1" in
 		-a | --all)
@@ -88,14 +93,17 @@ while [ "$#" -gt 0 ]; do
 	esac
 done
 
+# Confirm a valid argument was provided, else show USAGE
 [ "$OPTION_SPECIFIED" -eq 0 ] && USAGE
 
+# Initialise directory variables
 BASE_DIR=$(pwd)
 CORE_CONFIG="core.json"
 BUILD_DIR="$BASE_DIR/build"
 CORES_DIR="$BASE_DIR/cores"
 PATCH_DIR="$BASE_DIR/patch"
 
+# Create an update zip containing all cores
 UPDATE_ZIP() {
 	UPDATE_ARCHIVE="muOS-RetroArch-Core_Update-$(date +"%Y-%m-%d_%H-%M").zip"
 	TEMP_DIR="$(mktemp -d)"
@@ -143,6 +151,7 @@ for CMD in aarch64-linux-objcopy aarch64-linux-strip file git jq make patch pv r
 	fi
 done
 
+# Create required directories
 mkdir -p "$BUILD_DIR"
 mkdir -p "$CORES_DIR"
 
@@ -201,6 +210,12 @@ else
 	CORES=$(jq -r 'keys[]' "$CORE_CONFIG")
 fi
 
+# Load the cache file
+CACHE_FILE="$BASE_DIR/cache.json"
+if [ ! -f "$CACHE_FILE" ]; then
+    echo "{}" > "$CACHE_FILE"
+fi
+
 for NAME in $CORES; do
 	printf "\n-------------------------------------------------------------------------\n"
 
@@ -239,6 +254,29 @@ for NAME in $CORES; do
 
 	printf "Processing: %s\n\n" "$NAME"
 
+	# Get cached hash
+	CACHED_HASH=$(jq -r --arg name "$NAME" '.[$name] // ""' "$CACHE_FILE")
+	
+	# Get remote hash before cloning
+	if [ -n "$BRANCH" ]; then
+		REMOTE_HASH=$(git ls-remote "$SOURCE" "refs/heads/$BRANCH" | cut -c 1-7)
+	else
+		REMOTE_HASH=$(git ls-remote "$SOURCE" HEAD | cut -c 1-7)
+	fi
+
+	if [ -z "$REMOTE_HASH" ]; then
+		printf "Failed to get remote hash for '%s'\n" "$NAME" >&2
+		continue
+	fi
+
+	printf "Remote hash: %s\n" "$REMOTE_HASH"
+	printf "Cached hash: %s\n" "$CACHED_HASH"
+
+	if [ "$CACHED_HASH" = "$REMOTE_HASH" ] && [ "$PURGE" -eq 0 ]; then
+		printf "Core '%s' is up to date (hash: %s). Skipping build.\n" "$NAME" "$REMOTE_HASH"
+		continue
+	fi
+
 	if [ "$PURGE" -eq 1 ]; then
 		printf "Purging core '%s' directory\n" "$DIR"
 		rm -rf "$CORE_DIR"
@@ -273,11 +311,19 @@ for NAME in $CORES; do
 
 	if [ $BEEN_CLONED -eq 0 ]; then
 		printf "Pulling latest changes for '%s'\n" "$NAME"
-		git pull --recurse-submodules -j8 || {
+		git pull --quiet --recurse-submodules -j8 || {
 			printf "Failed to pull latest changes for '%s'\n" "$NAME" >&2
 			RETURN_TO_BASE
 			continue
 		}
+	fi
+
+	# Verify local hash matches remote hash after clone/pull
+	LOCAL_HASH=$(git rev-parse --short HEAD | cut -c 1-7)
+	if [ "$LOCAL_HASH" != "$REMOTE_HASH" ]; then
+		printf "Warning: Local hash (%s) doesn't match remote hash (%s)\n" "$LOCAL_HASH" "$REMOTE_HASH" >&2
+		RETURN_TO_BASE
+		continue
 	fi
 
 	if [ "$PRE_MAKE" != "[]" ]; then
@@ -301,11 +347,21 @@ for NAME in $CORES; do
 	done) | pv -q -L 10 -N "Building $NAME" &
 
 	PV_PID=$!
+	trap 'kill $PV_PID 2>/dev/null' EXIT
 
-	if make -j"$(nproc)" -f "$MAKE_FILE" "$MAKE_ARGS" "$MAKE_TARGET" >/dev/null 2>&1; then
+	MAKE_CMD="make -j$(nproc)"
+	[ -n "$MAKE_FILE" ] && MAKE_CMD="$MAKE_CMD -f $MAKE_FILE"
+	[ -n "$MAKE_ARGS" ] && MAKE_CMD="$MAKE_CMD $MAKE_ARGS"
+	[ -n "$MAKE_TARGET" ] && MAKE_CMD="$MAKE_CMD $MAKE_TARGET"
+
+	# Run the command
+	if $MAKE_CMD >/dev/null 2>&1; then
 		kill $PV_PID
 		wait $PV_PID 2>/dev/null
 		printf "\nBuild completed successfully for '%s'\n" "$NAME"
+		
+		# Update cache with new hash
+		jq --arg name "$NAME" --arg hash "$REMOTE_HASH" '.[$name] = $hash' "$CACHE_FILE" > "$CACHE_FILE.tmp" && mv "$CACHE_FILE.tmp" "$CACHE_FILE"
 	else
 		kill $PV_PID
 		wait $PV_PID 2>/dev/null
@@ -391,6 +447,8 @@ for NAME in $CORES; do
 
 	RETURN_TO_BASE
 done
+
+
 
 (
 	printf "<!DOCTYPE html>\n<html>\n<head>\n<title>MURCB - muOS RetroArch Core Builder</title>\n</head>\n<body>\n"
