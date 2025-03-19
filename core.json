@@ -1182,7 +1182,7 @@
     "output": "picodrive_libretro.so",
     "make": {
       "file": "Makefile.libretro",
-      "args": "",
+      "args": "platform=aarch64",
       "target": ""
     },
     "symbols": 0
