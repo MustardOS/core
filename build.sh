@@ -285,16 +285,30 @@ for NAME in $CORES; do
 	BEEN_CLONED=0
 	if [ ! -d "$CORE_DIR" ]; then
 		printf "Core '%s' not found\n\n" "$DIR" "$SOURCE"
-
 		GC_CMD="git clone --progress --quiet --recurse-submodules -j$(nproc)"
 		[ -n "$BRANCH" ] && GC_CMD="$GC_CMD -b $BRANCH"
 		GC_CMD="$GC_CMD $SOURCE $CORE_DIR"
-
 		eval "$GC_CMD" || {
 			printf "Failed to clone %s\n" "$SOURCE" >&2
 			continue
 		}
-
+		
+		# Enter the directory and update submodules
+		cd "$CORE_DIR" || {
+			printf "Failed to enter directory %s\n" "$CORE_DIR" >&2
+			continue
+		}
+		
+		# Update all submodules recursively
+		git submodule update --init --recursive || {
+			printf "Failed to update submodules for %s\n" "$SOURCE" >&2
+			cd - > /dev/null  # Return to previous directory
+			continue
+		}
+		
+		# Return to previous directory
+		cd - > /dev/null
+		
 		printf "\n"
 		BEEN_CLONED=1
 	fi
