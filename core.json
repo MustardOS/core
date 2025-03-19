@@ -1185,7 +1185,12 @@
       "args": "platform=aarch64",
       "target": ""
     },
-    "symbols": 0
+    "symbols": 0,
+    "commands": {
+      "pre-make": [
+        "git submodule update --init --recursive"
+      ]
+    }
   },
   "pocketcdg": {
     "source": "https://github.com/libretro/libretro-pocketcdg",
