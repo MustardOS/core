@@ -557,7 +557,7 @@
     "symbols": 0
   },
   "freej2me": {
-    "source": "https://github.com/TASEmulators/freej2me-plus",
+    "source": "https://github.com/vancuong196/freej2me-plus-rg35xxh",
     "directory": "freej2me-plus",
     "output": "freej2me_libretro.so",
     "make": {
@@ -1259,6 +1259,7 @@
   },
   "pcsx_rearmed": {
     "source": "https://github.com/libretro/pcsx_rearmed",
+    "branch": "4b0894f",
     "directory": "pcsx_rearmed",
     "output": "pcsx_rearmed_libretro.so",
     "make": {
@@ -1266,7 +1267,12 @@
       "args": "",
       "target": ""
     },
-    "symbols": 0
+    "symbols": 0,
+    "commands": {
+      "pre-make": [
+        "CFLAGS='-mcpu=cortex-a53 -mtune=cortex-a53' ./configure"
+      ]
+    }
   },
   "picodrive": {
     "source": "https://github.com/irixxxx/picodrive",

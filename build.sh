@@ -256,7 +256,7 @@ for NAME in $CORES; do
 		continue
 	fi
 
-	# Optional branch
+	# Optional branch/commit hash
 	BRANCH=$(echo "$MODULE" | jq -r '.branch // ""')
 
 	# Optional keys
@@ -269,12 +269,16 @@ for NAME in $CORES; do
 
 	# Get cached hash
 	CACHED_HASH=$(jq -r --arg name "$NAME" '.[$name] // ""' "$CACHE_FILE")
-	
-	# Get remote hash before cloning
+
+	# Get remote hash before cloning, modified for commit hash support:
 	if [ -n "$BRANCH" ]; then
-		REMOTE_HASH=$(git ls-remote "$SOURCE" "refs/heads/$BRANCH" | cut -c 1-7)
+	    if echo "$BRANCH" | grep -qE '^[0-9a-f]{7,40}$'; then
+	         REMOTE_HASH="$BRANCH"
+	    else
+	         REMOTE_HASH=$(git ls-remote "$SOURCE" "refs/heads/$BRANCH" | cut -c 1-7)
+	    fi
 	else
-		REMOTE_HASH=$(git ls-remote "$SOURCE" HEAD | cut -c 1-7)
+	    REMOTE_HASH=$(git ls-remote "$SOURCE" HEAD | cut -c 1-7)
 	fi
 
 	if [ -z "$REMOTE_HASH" ]; then
@@ -298,20 +302,35 @@ for NAME in $CORES; do
 	BEEN_CLONED=0
 	if [ ! -d "$CORE_DIR" ]; then
 		printf "Core '%s' not found\n\n" "$DIR" "$SOURCE"
-		GC_CMD="git clone --progress --quiet --recurse-submodules -j$(nproc)"
-		[ -n "$BRANCH" ] && GC_CMD="$GC_CMD -b $BRANCH"
-		GC_CMD="$GC_CMD $SOURCE $CORE_DIR"
+		# Modify clone command: if BRANCH is a commit hash, do not include -b.
+		if [ -n "$BRANCH" ] && echo "$BRANCH" | grep -qE '^[0-9a-f]{7,40}$'; then
+			GC_CMD="git clone --progress --quiet --recurse-submodules -j$(nproc) $SOURCE $CORE_DIR"
+		else
+			GC_CMD="git clone --progress --quiet --recurse-submodules -j$(nproc)"
+			[ -n "$BRANCH" ] && GC_CMD="$GC_CMD -b $BRANCH"
+			GC_CMD="$GC_CMD $SOURCE $CORE_DIR"
+		fi
 		eval "$GC_CMD" || {
 			printf "Failed to clone %s\n" "$SOURCE" >&2
 			continue
 		}
-		
-        # Always update submodules even if the repo exists
-        git submodule update --init --recursive || {
-            printf "Failed to update submodules for %s\n" "$NAME" >&2
-            RETURN_TO_BASE
-            continue
-        }
+
+		# If a commit hash was provided, checkout that commit after cloning.
+		if [ -n "$BRANCH" ] && echo "$BRANCH" | grep -qE '^[0-9a-f]{7,40}$'; then
+			cd "$CORE_DIR" || exit 1
+			git checkout --detach "$BRANCH" || {
+				printf "Failed to checkout commit %s in %s\n" "$BRANCH" "$CORE_DIR" >&2
+				continue
+			}
+			cd - > /dev/null
+		fi
+
+		# Always update submodules even if the repo exists
+		git submodule update --init --recursive || {
+			printf "Failed to update submodules for %s\n" "$NAME" >&2
+			RETURN_TO_BASE
+			continue
+		}
 
 		# Update all submodules recursively
 		git submodule update --init --recursive || {
@@ -319,10 +338,8 @@ for NAME in $CORES; do
 			cd - > /dev/null  # Return to previous directory
 			continue
 		}
-		
 		# Return to previous directory
 		cd - > /dev/null
-		
 		printf "\n"
 		BEEN_CLONED=1
 	fi
